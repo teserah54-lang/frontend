@@ -322,8 +322,13 @@
   <div id="config-modal">
     <div class="modal-content">
       <h2>⚙️ Backend Configuration</h2>
-      <label>Backend URL:</label>
-      <input type="text" id="backendUrl" placeholder="http://216.mts4you.biz.id:2163">
+      <label style="color:#aaa;font-size:13px;">Backend URL (gunakan HTTPS kalau frontend di Vercel!):</label>
+      <input type="text" id="backendUrl" placeholder="https://your-backend-domain.com">
+      <label style="color:#aaa;font-size:13px;margin-top:10px;display:block;">Auth Token (set AUTH_TOKEN di env backend):</label>
+      <input type="password" id="authToken" placeholder="change-this-secret-token-bro">
+      <div style="background:#ff475720;border:1px solid #ff4757;padding:8px;border-radius:5px;margin-top:10px;font-size:12px;color:#ff9999;">
+        ⚠️ Jangan share URL + token ini ke orang lain!
+      </div>
       <div class="modal-buttons">
         <button class="btn-save" onclick="saveConfig()">💾 Save & Reconnect</button>
         <button class="btn-cancel" onclick="hideConfig()">❌ Cancel</button>
@@ -339,14 +344,17 @@
     // ============================================
     // CONFIGURATION
     // ============================================
-    let BACKEND_URL = localStorage.getItem('backendUrl') || 'http://localhost:3000';
+    let BACKEND_URL = localStorage.getItem('backendUrl') || '';
+    let AUTH_TOKEN = localStorage.getItem('authToken') || '';
     
-    // Auto-detect if we're on Vercel and backend URL not set
-    if (window.location.hostname.includes('vercel.app') && BACKEND_URL === 'http://localhost:3000') {
-      // Prompt user to set backend URL on first load
-      setTimeout(() => {
-        showConfig();
-      }, 1000);
+    // Auto-detect: kalau di Vercel dan backend belum di-set, langsung minta config
+    if (window.location.hostname.includes('vercel.app') && !BACKEND_URL) {
+      setTimeout(() => { showConfig(); }, 500);
+    }
+    
+    // Warn kalau user set HTTP backend tapi frontend HTTPS (mixed content)
+    if (BACKEND_URL && BACKEND_URL.startsWith('http://') && window.location.protocol === 'https:') {
+      console.warn('⚠️ Mixed content! Backend HTTP tapi frontend HTTPS. Koneksi akan di-block browser!');
     }
     
     // ============================================
@@ -354,6 +362,7 @@
     // ============================================
     function showConfig() {
       document.getElementById('backendUrl').value = BACKEND_URL;
+      document.getElementById('authToken').value = AUTH_TOKEN;
       document.getElementById('config-modal').classList.add('show');
     }
     
@@ -363,12 +372,16 @@
     
     function saveConfig() {
       const url = document.getElementById('backendUrl').value.trim();
+      const token = document.getElementById('authToken').value.trim();
       if (url) {
         BACKEND_URL = url;
+        AUTH_TOKEN = token;
         localStorage.setItem('backendUrl', url);
+        localStorage.setItem('authToken', token);
         hideConfig();
-        // Reload page to reconnect with new URL
         location.reload();
+      } else {
+        alert('Backend URL wajib diisi bro!');
       }
     }
     
@@ -416,11 +429,17 @@
     // SOCKET.IO CONNECTION
     // ============================================
     console.log('Connecting to backend:', BACKEND_URL);
-    const socket = io(BACKEND_URL, {
+    
+    if (!BACKEND_URL) {
+      term.write('\r\n\x1b[31m[!] Backend URL belum di-set! Klik ⚙️ Backend URL di atas.\x1b[0m\r\n');
+    }
+    
+    const socket = io(BACKEND_URL || 'http://localhost:3000', {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10
+      reconnectionAttempts: 10,
+      auth: { token: AUTH_TOKEN }   // ← kirim token ke backend
     });
     
     socket.on('connect', () => {
@@ -437,6 +456,12 @@
     socket.on('connect_error', (error) => {
       console.error('Connection error:', error);
       document.getElementById('status').className = 'status disconnected';
+      if (error.message === 'Unauthorized: Invalid token') {
+        term.write('\r\n\x1b[31m[!] Auth gagal! Token salah. Klik ⚙️ Backend URL & cek token.\x1b[0m\r\n');
+      } else {
+        term.write(`\r\n\x1b[31m[!] Gagal konek: ${error.message}\x1b[0m\r\n`);
+        term.write('\x1b[33m[?] Pastiin backend running & URL bener. Mixed HTTP/HTTPS?\x1b[0m\r\n');
+      }
     });
     
     socket.on('output', (data) => {
