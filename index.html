@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🔥 Ultimate Pentest Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0a0e27;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      overflow: hidden;
+      color: #fff;
+    }
+    
+    #header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    
+    .status {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    .status.connected {
+      background: #00ff88;
+      box-shadow: 0 0 15px #00ff88;
+    }
+    
+    .status.disconnected { background: #ff4757; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .header-right {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: #00ff88;
+      color: #0a0e27;
+    }
+    
+    .btn-primary:hover {
+      background: #00dd77;
+      transform: scale(1.05);
+    }
+    
+    #terminal-container {
+      height: calc(100vh - 60px);
+      padding: 0;
+    }
+    
+    #terminal {
+      height: 100%;
+      padding: 10px;
+    }
+    
+    .xterm {
+      height: 100%;
+      padding: 10px;
+    }
+    
+    .xterm-viewport {
+      overflow-y: auto;
+    }
+    
+    #sidebar {
+      position: fixed;
+      right: -400px;
+      top: 0;
+      width: 400px;
+      height: 100vh;
+      background: #1a1e3a;
+      box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+      transition: right 0.3s;
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    
+    #sidebar.open {
+      right: 0;
+    }
+    
+    .sidebar-content {
+      padding: 20px;
+    }
+    
+    .sidebar-section {
+      margin-bottom: 25px;
+    }
+    
+    .sidebar-section h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .tool-card {
+      background: #0a0e27;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border-left: 3px solid #667eea;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .tool-card:hover {
+      background: #151b3d;
+      border-left-color: #00ff88;
+      transform: translateX(5px);
+    }
+    
+    .tool-card.installed {
+      border-left-color: #00ff88;
+    }
+    
+    .tool-name {
+      font-weight: bold;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .category-tag {
+      font-size: 10px;
+      background: #667eea;
+      padding: 2px 8px;
+      border-radius: 10px;
+      color: white;
+    }
+    
+    .tool-status {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+    
+    .close-sidebar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+    
+    .close-sidebar:hover {
+      color: #ff4757;
+    }
+    
+    .payload-gen {
+      background: #0a0e27;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    
+    .payload-gen select,
+    .payload-gen button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #667eea;
+      border-radius: 5px;
+      background: #1a1e3a;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .payload-gen button {
+      background: #667eea;
+      font-weight: bold;
+    }
+    
+    .payload-gen button:hover {
+      background: #7c8ef7;
+    }
+    
+    #config-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #config-modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: #1a1e3a;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+    }
+    
+    .modal-content h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+    
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #0a0e27;
+      border: 1px solid #667eea;
+      border-radius: 5px;
+      color: white;
+      font-size: 14px;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .modal-buttons button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .btn-save {
+      background: #00ff88;
+      color: #0a0e27;
+    }
+    
+    .btn-cancel {
+      background: #ff4757;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div class="header-left">
+      <div class="status connected" id="status"></div>
+      <span class="title">🔥 Ultimate Pentest Terminal</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-primary" onclick="showConfig()">⚙️ Backend URL</button>
+      <button class="btn btn-primary" onclick="toggleSidebar()">🛠️ Tools</button>
+    </div>
+  </div>
+  
+  <div id="terminal-container">
+    <div id="terminal"></div>
+  </div>
+  
+  <div id="sidebar">
+    <button class="close-sidebar" onclick="toggleSidebar()">×</button>
+    <div class="sidebar-content">
+      <div class="sidebar-section">
+        <h3>📦 GitHub Tools</h3>
+        <div id="githubTools"></div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>💉 Payload Generator</h3>
+        <div class="payload-gen">
+          <select id="payloadType">
+            <option value="reverse-shell-bash">Reverse Shell (Bash)</option>
+            <option value="reverse-shell-python">Reverse Shell (Python)</option>
+            <option value="reverse-shell-php">Reverse Shell (PHP)</option>
+            <option value="reverse-shell-nc">Reverse Shell (Netcat)</option>
+            <option value="xss-basic">XSS Basic</option>
+            <option value="xss-img">XSS Image</option>
+            <option value="sqli-basic">SQLi Basic</option>
+          </select>
+          <div id="payloadParams"></div>
+          <button onclick="generatePayload()">Generate Payload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="config-modal">
+    <div class="modal-content">
+      <h2>⚙️ Backend Configuration</h2>
+      <label>Backend URL:</label>
+      <input type="text" id="backendUrl" placeholder="http://216.mts4you.biz.id:2163">
+      <div class="modal-buttons">
+        <button class="btn-save" onclick="saveConfig()">💾 Save & Reconnect</button>
+        <button class="btn-cancel" onclick="hideConfig()">❌ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  
+  <script>
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    let BACKEND_URL = localStorage.getItem('backendUrl') || 'http://localhost:3000';
+    
+    // Auto-detect if we're on Vercel and backend URL not set
+    if (window.location.hostname.includes('vercel.app') && BACKEND_URL === 'http://localhost:3000') {
+      // Prompt user to set backend URL on first load
+      setTimeout(() => {
+        showConfig();
+      }, 1000);
+    }
+    
+    // ============================================
+    // CONFIG MODAL
+    // ============================================
+    function showConfig() {
+      document.getElementById('backendUrl').value = BACKEND_URL;
+      document.getElementById('config-modal').classList.add('show');
+    }
+    
+    function hideConfig() {
+      document.getElementById('config-modal').classList.remove('show');
+    }
+    
+    function saveConfig() {
+      const url = document.getElementById('backendUrl').value.trim();
+      if (url) {
+        BACKEND_URL = url;
+        localStorage.setItem('backendUrl', url);
+        hideConfig();
+        // Reload page to reconnect with new URL
+        location.reload();
+      }
+    }
+    
+    // ============================================
+    // TERMINAL SETUP
+    // ============================================
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: "'Fira Code', 'Courier New', monospace",
+      theme: {
+        background: '#0a0e27',
+        foreground: '#ffffff',
+        cursor: '#00ff88',
+        selection: '#667eea',
+        black: '#000000',
+        red: '#ff4757',
+        green: '#00ff88',
+        yellow: '#ffdd00',
+        blue: '#667eea',
+        magenta: '#764ba2',
+        cyan: '#00ddff',
+        white: '#ffffff',
+        brightBlack: '#555555',
+        brightRed: '#ff6b7a',
+        brightGreen: '#00ffaa',
+        brightYellow: '#ffee00',
+        brightBlue: '#7c8ef7',
+        brightMagenta: '#9166bf',
+        brightCyan: '#00eeff',
+        brightWhite: '#ffffff'
+      }
+    });
+    
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    
+    window.addEventListener('resize', () => {
+      fitAddon.fit();
+    });
+    
+    // ============================================
+    // SOCKET.IO CONNECTION
+    // ============================================
+    console.log('Connecting to backend:', BACKEND_URL);
+    const socket = io(BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10
+    });
+    
+    socket.on('connect', () => {
+      console.log('Connected to backend');
+      document.getElementById('status').className = 'status connected';
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('Disconnected from backend');
+      document.getElementById('status').className = 'status disconnected';
+      term.write('\r\n\x1b[31m[Disconnected from server]\x1b[0m\r\n');
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      document.getElementById('status').className = 'status disconnected';
+    });
+    
+    socket.on('output', (data) => {
+      term.write(data);
+    });
+    
+    socket.on('github-tools', (tools) => {
+      renderGithubTools(tools);
+    });
+    
+    term.onData((data) => {
+      socket.emit('input', data);
+    });
+    
+    // ============================================
+    // SIDEBAR FUNCTIONS
+    // ============================================
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+    
+    function renderGithubTools(tools) {
+      const container = document.getElementById('githubTools');
+      container.innerHTML = '';
+      
+      Object.entries(tools).forEach(([name, info]) => {
+        const card = document.createElement('div');
+        card.className = 'tool-card' + (info.installed ? ' installed' : '');
+        card.innerHTML = `
+          <div class="tool-name">\${name} <span class="category-tag">\${info.category}</span></div>
+          <div class="tool-status">\${info.installed ? '✓ Installed' : '✗ Not installed'}</div>
+        `;
+        card.onclick = () => {
+          if (!info.installed) {
+            socket.emit('input', `pkg install \${name}\\r`);
+            toggleSidebar();
+          } else {
+            socket.emit('input', `\${name} `);
+            toggleSidebar();
+          }
+        };
+        container.appendChild(card);
+      });
+    }
+    
+    function generatePayload() {
+      const type = document.getElementById('payloadType').value;
+      const ip = document.getElementById('payloadIP')?.value || '';
+      const port = document.getElementById('payloadPort')?.value || '';
+      
+      if (type.includes('reverse-shell') && (!ip || !port)) {
+        alert('Please enter IP and Port');
+        return;
+      }
+      
+      socket.emit('input', `payload \${type} \${ip} \${port}\\r`);
+      toggleSidebar();
+    }
+    
+    // Update payload params based on selection
+    document.getElementById('payloadType').addEventListener('change', (e) => {
+      const params = document.getElementById('payloadParams');
+      if (e.target.value.includes('reverse-shell')) {
+        params.innerHTML = `
+          <input type="text" id="payloadIP" placeholder="Your IP" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #0a0e27; color: white; border: 1px solid #667eea; border-radius: 5px;">
+          <input type="text" id="payloadPort" placeholder="Your Port" style="width: 100%; padding: 8px; background: #0a0e27; color: white; border: 1px solid #667eea; border-radius: 5px;">
+        `;
+      } else {
+        params.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>
